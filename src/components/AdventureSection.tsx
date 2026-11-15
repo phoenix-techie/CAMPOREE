@@ -4,15 +4,18 @@ import { useCamporee } from '../context/CamporeeContext';
 import { sanitizeFirestoreId } from '../lib/qrParser';
 import { Activity, ActivityImageKey, ActivityStatus } from '../types/camporee';
 import { ConfirmDialog } from './ConfirmDialog';
+import ropesBaseImg from '../assets/images/adventure_ropes_base_1794774455847.jpg';
+import pioneeringBaseImg from '../assets/images/adventure_pioneering_base_1794774456766.jpg';
+import groundsBaseImg from '../assets/images/camporee_hero_grounds_1794774454711.jpg';
 
 interface AdventureSectionProps {
   onOpenScannerForActivity: (activityId: string) => void;
 }
 
 const IMAGE_MAP: Record<ActivityImageKey, string | null> = {
-  ropes: '/src/assets/images/adventure_ropes_base_1794774455847.jpg',
-  pioneering: '/src/assets/images/adventure_pioneering_base_1794774456766.jpg',
-  grounds: '/src/assets/images/camporee_hero_grounds_1794774454711.jpg',
+  ropes: ropesBaseImg,
+  pioneering: pioneeringBaseImg,
+  grounds: groundsBaseImg,
   none: null,
 };
 

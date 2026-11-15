@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowRight, Calendar, Compass, MapPin, QrCode, ShieldCheck, Tent } from 'lucide-react';
 import { useCamporee } from '../context/CamporeeContext';
 import { AppSection } from './TopBar';
+import heroGroundsImg from '../assets/images/camporee_hero_grounds_1794774454711.jpg';
 
 interface OverviewSectionProps {
   onNavigate: (section: AppSection) => void;
@@ -125,7 +126,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({ onNavigate }) 
         <div className="lg:col-span-6 rounded-2xl overflow-hidden border border-[#DDE4DD] bg-[#1B4332] min-h-[280px] relative">
           {!heroImgError ? (
             <img
-              src="/src/assets/images/camporee_hero_grounds_1794774454711.jpg"
+              src={heroGroundsImg}
               alt="Kerala State Bharat Scouts and Guides Camporee grounds with patrol tents and Western Ghats hills"
               referrerPolicy="no-referrer"
               onError={() => setHeroImgError(true)}
