@@ -1,0 +1,184 @@
+{
+  "entities": {
+    "CampLocation": {
+      "title": "CampLocation",
+      "description": "A mapped zone, sub-camp, venue, adventure base, or facility on the Kerala State BSG Camporee site map.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "category": { "type": "string", "enum": ["subcamp", "venue", "adventure", "facility", "hq"] },
+        "sector": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "description": { "type": "string", "maxLength": 600 },
+        "directions": { "type": "string", "maxLength": 400 },
+        "mapX": { "type": "number" },
+        "mapY": { "type": "number" },
+        "coordinatesLabel": { "type": "string", "maxLength": 80 },
+        "status": { "type": "string", "enum": ["open", "busy", "closed", "updating"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "category", "sector", "mapX", "mapY", "status", "createdAt", "updatedAt"]
+    },
+    "Venue": {
+      "title": "Venue",
+      "description": "A physical program or assembly venue managed by Camporee administrators.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "zone": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "capacity": { "type": "integer" },
+        "locationId": { "type": "string", "maxLength": 128 },
+        "facilities": { "type": "string", "maxLength": 300 },
+        "status": { "type": "string", "enum": ["active", "standby", "closed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "zone", "capacity", "status", "createdAt", "updatedAt"]
+    },
+    "Activity": {
+      "title": "Activity",
+      "description": "A scheduled Camporee program or Adventure Base managed by Admin.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 2, "maxLength": 140 },
+        "type": { "type": "string", "enum": ["program", "adventure"] },
+        "category": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "description": { "type": "string", "maxLength": 800 },
+        "venueId": { "type": "string", "maxLength": 128 },
+        "venueName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "dayLabel": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "startTime": { "type": "string", "minLength": 4, "maxLength": 40 },
+        "endTime": { "type": "string", "minLength": 4, "maxLength": 40 },
+        "status": { "type": "string", "enum": ["scheduled", "live", "completed", "delayed"] },
+        "safetyNotes": { "type": "string", "maxLength": 400 },
+        "imageKey": { "type": "string", "enum": ["grounds", "ropes", "pioneering", "none"] },
+        "juryDisplayNames": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "type", "category", "venueId", "venueName", "dayLabel", "startTime", "endTime", "status", "createdAt", "updatedAt"]
+    },
+    "JuryMember": {
+      "title": "JuryMember",
+      "description": "Authorized Jury official assigned by Admin to programs and adventure bases.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "name": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "district": { "type": "string", "maxLength": 80 },
+        "roleTitle": { "type": "string", "maxLength": 80 },
+        "assignedActivityIds": { "type": "array" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "name", "assignedActivityIds", "active", "createdAt", "updatedAt"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Verified QR attendance log recorded by Jury for a scheduled activity.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "activityId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "activityName": { "type": "string", "minLength": 2, "maxLength": 140 },
+        "activityType": { "type": "string", "enum": ["program", "adventure"] },
+        "venueName": { "type": "string", "maxLength": 120 },
+        "uidNumber": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "participantName": { "type": "string", "maxLength": 120 },
+        "district": { "type": "string", "maxLength": 80 },
+        "patrol": { "type": "string", "maxLength": 80 },
+        "verifiedByUid": { "type": "string", "maxLength": 128 },
+        "verifiedByEmail": { "type": "string", "format": "email", "maxLength": 160 },
+        "verifiedByName": { "type": "string", "maxLength": 120 },
+        "timestampIso": { "type": "string", "maxLength": 64 },
+        "sheetSynced": { "type": "boolean" },
+        "sheetRowRange": { "type": "string", "maxLength": 120 },
+        "driveFileId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "activityId", "activityName", "activityType", "uidNumber", "verifiedByUid", "verifiedByEmail", "timestampIso", "sheetSynced", "createdAt"]
+    },
+    "CamporeeConfig": {
+      "title": "CamporeeConfig",
+      "description": "Configuration documents for general camp info and centralized Google Sheets / Drive integration.",
+      "type": "object",
+      "properties": {
+        "configType": { "type": "string", "enum": ["general", "sheets"] },
+        "camporeeTitle": { "type": "string", "maxLength": 140 },
+        "locationNote": { "type": "string", "maxLength": 300 },
+        "spreadsheetId": { "type": "string", "maxLength": 160 },
+        "spreadsheetTitle": { "type": "string", "maxLength": 160 },
+        "spreadsheetUrl": { "type": "string", "maxLength": 300 },
+        "folderId": { "type": "string", "maxLength": 160 },
+        "sheetTabName": { "type": "string", "maxLength": 80 },
+        "updatedBy": { "type": "string", "maxLength": 160 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["configType", "updatedAt"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Delegated Camporee administrator record.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "name": { "type": "string", "maxLength": 120 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "AdminEmail": {
+      "title": "AdminEmail",
+      "description": "Authorized Camporee administrator keyed by lowercase Google email.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "name": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "district": { "type": "string", "maxLength": 80 },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "name", "active", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/campLocations/{locationId}": {
+      "schema": { "$ref": "#/entities/CampLocation" },
+      "description": "Interactive site map pins and camp location finder entries."
+    },
+    "/venues/{venueId}": {
+      "schema": { "$ref": "#/entities/Venue" },
+      "description": "Camporee program and assembly venues."
+    },
+    "/activities/{activityId}": {
+      "schema": { "$ref": "#/entities/Activity" },
+      "description": "Scheduled programs and adventure bases charted by Admin."
+    },
+    "/juryMembers/{email}": {
+      "schema": { "$ref": "#/entities/JuryMember" },
+      "description": "Assigned Jury officials keyed by lowercase email."
+    },
+    "/attendance/{recordId}": {
+      "schema": { "$ref": "#/entities/AttendanceRecord" },
+      "description": "QR-verified attendance entries linked to activities and Google Sheets."
+    },
+    "/camporeeConfig/{configId}": {
+      "schema": { "$ref": "#/entities/CamporeeConfig" },
+      "description": "Camporee site configuration and centralized Google Sheets metadata."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Delegated Camporee admin records."
+    },
+    "/adminEmails/{email}": {
+      "schema": { "$ref": "#/entities/AdminEmail" },
+      "description": "Authorized Camporee admins keyed by email."
+    }
+  }
+}

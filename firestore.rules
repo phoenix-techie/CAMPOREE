@@ -1,0 +1,345 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global safety net: deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Shared primitives
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidEmailKey(email) {
+      return email is string
+        && email.size() >= 5
+        && email.size() <= 160
+        && email.matches('^[a-z0-9._%+\\-]+@[a-z0-9.\\-]+\\.[a-z]{2,}$');
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedUser() && request.auth.token.email.lower() == 'ethnicelegance.kochi@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin()
+        || (isVerifiedUser() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)))
+        || (
+          isVerifiedUser()
+          && exists(/databases/$(database)/documents/adminEmails/$(request.auth.token.email.lower()))
+          && get(/databases/$(database)/documents/adminEmails/$(request.auth.token.email.lower())).data.active == true
+        );
+    }
+
+    function isJury() {
+      return isVerifiedUser()
+        && exists(/databases/$(database)/documents/juryMembers/$(request.auth.token.email.lower()))
+        && get(/databases/$(database)/documents/juryMembers/$(request.auth.token.email.lower())).data.active == true;
+    }
+
+    // Entity validation blueprints
+    function isValidCampLocation(data) {
+      return data.keys().hasAll(['id', 'name', 'category', 'sector', 'mapX', 'mapY', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'name', 'category', 'sector', 'description', 'directions', 'mapX', 'mapY', 'coordinatesLabel', 'status', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 120
+        && data.category in ['subcamp', 'venue', 'adventure', 'facility', 'hq']
+        && data.sector is string && data.sector.size() >= 1 && data.sector.size() <= 60
+        && (!('description' in data) || (data.description is string && data.description.size() <= 600))
+        && (!('directions' in data) || (data.directions is string && data.directions.size() <= 400))
+        && data.mapX is number && data.mapX >= 0 && data.mapX <= 100
+        && data.mapY is number && data.mapY >= 0 && data.mapY <= 100
+        && (!('coordinatesLabel' in data) || (data.coordinatesLabel is string && data.coordinatesLabel.size() <= 80))
+        && data.status in ['open', 'busy', 'closed', 'updating']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidVenue(data) {
+      return data.keys().hasAll(['id', 'name', 'zone', 'capacity', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'name', 'zone', 'capacity', 'locationId', 'facilities', 'status', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 120
+        && data.zone is string && data.zone.size() >= 2 && data.zone.size() <= 80
+        && data.capacity is int && data.capacity >= 1 && data.capacity <= 50000
+        && (!('locationId' in data) || (data.locationId is string && data.locationId.size() <= 128))
+        && (!('facilities' in data) || (data.facilities is string && data.facilities.size() <= 300))
+        && data.status in ['active', 'standby', 'closed']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidActivity(data) {
+      return data.keys().hasAll(['id', 'title', 'type', 'category', 'venueId', 'venueName', 'dayLabel', 'startTime', 'endTime', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'title', 'type', 'category', 'description', 'venueId', 'venueName', 'dayLabel', 'startTime', 'endTime', 'status', 'safetyNotes', 'imageKey', 'juryDisplayNames', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && data.title is string && data.title.size() >= 2 && data.title.size() <= 140
+        && data.type in ['program', 'adventure']
+        && data.category is string && data.category.size() >= 2 && data.category.size() <= 60
+        && (!('description' in data) || (data.description is string && data.description.size() <= 800))
+        && data.venueId is string && data.venueId.size() >= 1 && data.venueId.size() <= 128
+        && data.venueName is string && data.venueName.size() >= 2 && data.venueName.size() <= 120
+        && data.dayLabel is string && data.dayLabel.size() >= 2 && data.dayLabel.size() <= 60
+        && data.startTime is string && data.startTime.size() >= 4 && data.startTime.size() <= 40
+        && data.endTime is string && data.endTime.size() >= 4 && data.endTime.size() <= 40
+        && data.status in ['scheduled', 'live', 'completed', 'delayed']
+        && (!('safetyNotes' in data) || (data.safetyNotes is string && data.safetyNotes.size() <= 400))
+        && (!('imageKey' in data) || data.imageKey in ['grounds', 'ropes', 'pioneering', 'none'])
+        && (!('juryDisplayNames' in data) || (
+          data.juryDisplayNames is list
+          && data.juryDisplayNames.size() <= 10
+          && (data.juryDisplayNames.size() == 0 || (data.juryDisplayNames[0] is string && data.juryDisplayNames[0].size() <= 120))
+        ))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidJuryMember(data) {
+      return data.keys().hasAll(['email', 'name', 'assignedActivityIds', 'active', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['email', 'name', 'district', 'roleTitle', 'assignedActivityIds', 'active', 'createdAt', 'updatedAt'])
+        && isValidEmailKey(data.email)
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 120
+        && (!('district' in data) || (data.district is string && data.district.size() <= 80))
+        && (!('roleTitle' in data) || (data.roleTitle is string && data.roleTitle.size() <= 80))
+        && data.assignedActivityIds is list
+        && data.assignedActivityIds.size() <= 50
+        && (data.assignedActivityIds.size() == 0 || (data.assignedActivityIds[0] is string && data.assignedActivityIds[0].size() <= 128))
+        && data.active is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAttendanceRecord(data) {
+      return data.keys().hasAll(['id', 'activityId', 'activityName', 'activityType', 'uidNumber', 'verifiedByUid', 'verifiedByEmail', 'timestampIso', 'sheetSynced', 'createdAt'])
+        && data.keys().hasOnly(['id', 'activityId', 'activityName', 'activityType', 'venueName', 'uidNumber', 'participantName', 'district', 'patrol', 'verifiedByUid', 'verifiedByEmail', 'verifiedByName', 'timestampIso', 'sheetSynced', 'sheetRowRange', 'driveFileId', 'createdAt'])
+        && isValidId(data.id)
+        && isValidId(data.activityId)
+        && data.activityName is string && data.activityName.size() >= 2 && data.activityName.size() <= 140
+        && data.activityType in ['program', 'adventure']
+        && (!('venueName' in data) || (data.venueName is string && data.venueName.size() <= 120))
+        && data.uidNumber is string && data.uidNumber.size() >= 2 && data.uidNumber.size() <= 80
+        && (!('participantName' in data) || (data.participantName is string && data.participantName.size() <= 120))
+        && (!('district' in data) || (data.district is string && data.district.size() <= 80))
+        && (!('patrol' in data) || (data.patrol is string && data.patrol.size() <= 80))
+        && data.verifiedByUid is string && data.verifiedByUid.size() >= 1 && data.verifiedByUid.size() <= 128
+        && isValidEmailKey(data.verifiedByEmail)
+        && (!('verifiedByName' in data) || (data.verifiedByName is string && data.verifiedByName.size() <= 120))
+        && data.timestampIso is string && data.timestampIso.size() >= 10 && data.timestampIso.size() <= 64
+        && data.sheetSynced is bool
+        && (!('sheetRowRange' in data) || (data.sheetRowRange is string && data.sheetRowRange.size() <= 120))
+        && (!('driveFileId' in data) || (data.driveFileId is string && data.driveFileId.size() <= 128))
+        && data.createdAt is timestamp;
+    }
+
+    function isValidCamporeeConfig(data) {
+      return data.keys().hasAll(['configType', 'updatedAt'])
+        && data.keys().hasOnly(['configType', 'camporeeTitle', 'locationNote', 'spreadsheetId', 'spreadsheetTitle', 'spreadsheetUrl', 'folderId', 'sheetTabName', 'updatedBy', 'updatedAt'])
+        && data.configType in ['general', 'sheets']
+        && (!('camporeeTitle' in data) || (data.camporeeTitle is string && data.camporeeTitle.size() <= 140))
+        && (!('locationNote' in data) || (data.locationNote is string && data.locationNote.size() <= 300))
+        && (!('spreadsheetId' in data) || (data.spreadsheetId is string && data.spreadsheetId.size() <= 160))
+        && (!('spreadsheetTitle' in data) || (data.spreadsheetTitle is string && data.spreadsheetTitle.size() <= 160))
+        && (!('spreadsheetUrl' in data) || (data.spreadsheetUrl is string && data.spreadsheetUrl.size() <= 300))
+        && (!('folderId' in data) || (data.folderId is string && data.folderId.size() <= 160))
+        && (!('sheetTabName' in data) || (data.sheetTabName is string && data.sheetTabName.size() <= 80))
+        && (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy.size() <= 160))
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'email', 'name', 'createdAt'])
+        && isValidId(data.uid)
+        && isValidEmailKey(data.email)
+        && (!('name' in data) || (data.name is string && data.name.size() <= 120))
+        && data.createdAt is timestamp;
+    }
+
+    function isValidAdminEmail(data) {
+      return data.keys().hasAll(['email', 'name', 'active', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['email', 'name', 'district', 'active', 'createdAt', 'updatedAt'])
+        && isValidEmailKey(data.email)
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 120
+        && (!('district' in data) || (data.district is string && data.district.size() <= 80))
+        && data.active is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // 1. Public Camp Map Locations (Guests read; Admin writes)
+    match /campLocations/{locationId} {
+      allow get: if isValidId(locationId);
+      allow list: if true;
+      allow create: if isValidId(locationId)
+        && isValidCampLocation(incoming())
+        && incoming().id == locationId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow update: if isValidId(locationId)
+        && isValidCampLocation(incoming())
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow delete: if isValidId(locationId) && isAdmin();
+    }
+
+    // 2. Public Venues (Guests read; Admin writes)
+    match /venues/{venueId} {
+      allow get: if isValidId(venueId);
+      allow list: if true;
+      allow create: if isValidId(venueId)
+        && isValidVenue(incoming())
+        && incoming().id == venueId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow update: if isValidId(venueId)
+        && isValidVenue(incoming())
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow delete: if isValidId(venueId) && isAdmin();
+    }
+
+    // 3. Public Programs & Adventure Bases (Guests read; Admin charts & edits venue/time)
+    match /activities/{activityId} {
+      allow get: if isValidId(activityId);
+      allow list: if true;
+      allow create: if isValidId(activityId)
+        && isValidActivity(incoming())
+        && incoming().id == activityId
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow update: if isValidId(activityId)
+        && isValidActivity(incoming())
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow delete: if isValidId(activityId) && isAdmin();
+    }
+
+    // 4. Jury Officials Registry (PII isolated: Admin or self-get only)
+    match /juryMembers/{email} {
+      allow get: if isValidEmailKey(email)
+        && (isAdmin() || (isVerifiedUser() && request.auth.token.email.lower() == email));
+      allow list: if isAdmin();
+      allow create: if isValidEmailKey(email)
+        && isValidJuryMember(incoming())
+        && incoming().email == email
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow update: if isValidEmailKey(email)
+        && isValidJuryMember(incoming())
+        && incoming().email == existing().email
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow delete: if isValidEmailKey(email) && isAdmin();
+    }
+
+    // 5. QR Verified Attendance Records (Admin & Jury read/create; Jury can only mark sheet sync)
+    match /attendance/{recordId} {
+      allow get: if isValidId(recordId) && (isAdmin() || isJury());
+      allow list: if isAdmin() || isJury();
+      allow create: if isValidId(recordId)
+        && isValidAttendanceRecord(incoming())
+        && incoming().id == recordId
+        && incoming().createdAt == request.time
+        && incoming().verifiedByUid == request.auth.uid
+        && incoming().verifiedByEmail == request.auth.token.email.lower()
+        && exists(/databases/$(database)/documents/activities/$(incoming().activityId))
+        && (isAdmin() || isJury());
+      allow update: if isValidId(recordId)
+        && isValidAttendanceRecord(incoming())
+        && incoming().id == existing().id
+        && incoming().activityId == existing().activityId
+        && incoming().uidNumber == existing().uidNumber
+        && incoming().verifiedByUid == existing().verifiedByUid
+        && incoming().verifiedByEmail == existing().verifiedByEmail
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin()
+          || (
+            isJury()
+            && existing().verifiedByUid == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['sheetSynced', 'sheetRowRange', 'driveFileId'])
+          )
+        );
+      allow delete: if isValidId(recordId) && isAdmin();
+    }
+
+    // 6. Camporee Config (general is public; sheets config is Admin & Jury readable, Admin writable)
+    match /camporeeConfig/{configId} {
+      allow get: if isValidId(configId) && (configId == 'general' || isAdmin() || isJury());
+      allow list: if isAdmin();
+      allow create, update: if isValidId(configId)
+        && isValidCamporeeConfig(incoming())
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow delete: if isValidId(configId) && isAdmin();
+    }
+
+    // 7. Delegated Admins
+    match /admins/{adminUid} {
+      allow get: if isValidId(adminUid) && (isAdmin() || (isVerifiedUser() && request.auth.uid == adminUid));
+      allow list: if isAdmin();
+      allow create: if isValidId(adminUid)
+        && isValidAdminUser(incoming())
+        && incoming().uid == adminUid
+        && incoming().createdAt == request.time
+        && isAdmin();
+      allow update: if isValidId(adminUid)
+        && isValidAdminUser(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && isAdmin();
+      allow delete: if isValidId(adminUid) && isAdmin();
+    }
+
+    // 8. Email-keyed Delegated Admins (PII isolated: Admin or self-get only)
+    match /adminEmails/{email} {
+      allow get: if isValidEmailKey(email)
+        && (isAdmin() || (isVerifiedUser() && request.auth.token.email.lower() == email));
+      allow list: if isAdmin();
+      allow create: if isValidEmailKey(email)
+        && isValidAdminEmail(incoming())
+        && incoming().email == email
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow update: if isValidEmailKey(email)
+        && isValidAdminEmail(incoming())
+        && incoming().email == existing().email
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow delete: if isValidEmailKey(email) && isAdmin();
+    }
+  }
+}

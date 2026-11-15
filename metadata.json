@@ -1,0 +1,6 @@
+{
+  "name": "Kerala State BSG Camporee Hub",
+  "description": "Official camporee command center for Kerala State Bharat Scouts and Guides featuring an interactive site map, venue & program schedules, adventure bases, jury management, and QR attendance sync to Google Drive and Sheets.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
